@@ -1,4 +1,5 @@
 use compact_str::CompactString;
+use unicode_width::UnicodeWidthChar;
 
 use crate::style::{Color, Modifier, Style};
 use crate::symbols::merge::MergeStrategy;
@@ -193,6 +194,12 @@ impl Cell {
     pub fn reset(&mut self) {
         *self = Self::EMPTY;
     }
+
+    /// Returns the display width of the cell's symbol, ignoring ANSI escape sequences such as OSC.
+    #[must_use]
+    pub fn width(&self) -> usize {
+        symbol_display_width(self.symbol())
+    }
 }
 
 impl PartialEq for Cell {
@@ -217,6 +224,60 @@ impl PartialEq for Cell {
             && self.modifier == other.modifier
             && self.skip == other.skip
     }
+}
+
+fn symbol_display_width(symbol: &str) -> usize {
+    let mut width: usize = 0;
+    let mut chars = symbol.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\u{001b}' => match chars.next() {
+                Some('[') => {
+                    while let Some(c) = chars.next() {
+                        if ('@'..='~').contains(&c) {
+                            break;
+                        }
+                    }
+                }
+                Some(']') => loop {
+                    match chars.next() {
+                        Some('\u{0007}') => break,
+                        Some('\u{001b}') => {
+                            if let Some('\\') = chars.next() {
+                                break;
+                            }
+                        }
+                        Some(_) => continue,
+                        None => break,
+                    }
+                },
+                Some('P' | 'X' | '^' | '_') => loop {
+                    match chars.next() {
+                        Some('\u{001b}') => {
+                            if let Some('\\') = chars.next() {
+                                break;
+                            }
+                        }
+                        Some(_) => continue,
+                        None => break,
+                    }
+                },
+                Some(_other) => {}
+                None => break,
+            },
+            '\u{009b}' => {
+                while let Some(c) = chars.next() {
+                    if ('@'..='~').contains(&c) {
+                        break;
+                    }
+                }
+            }
+            _ => {
+                width = width.saturating_add(UnicodeWidthChar::width(ch).unwrap_or(0));
+            }
+        }
+    }
+    width
 }
 
 impl Eq for Cell {}
@@ -373,5 +434,19 @@ mod tests {
         let cell1 = Cell::new("あ");
         let cell2 = Cell::new("い");
         assert_ne!(cell1, cell2);
+    }
+
+    #[test]
+    fn width_ignores_osc_sequences() {
+        let mut cell = Cell::default();
+        cell.set_symbol("\u{001b}]8;;https://example.com\u{0007}G\u{001b}]8;;\u{0007}");
+        assert_eq!(cell.width(), 1);
+    }
+
+    #[test]
+    fn width_counts_visible_characters() {
+        let mut cell = Cell::default();
+        cell.set_symbol("Go");
+        assert_eq!(cell.width(), 2);
     }
 }

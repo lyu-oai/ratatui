@@ -502,7 +502,7 @@ impl Buffer {
                 // result in visual artifacts (e.g., leftover characters). Emitting an explicit
                 // update for the trailing cells avoids this.
                 let symbol = current.symbol();
-                let cell_width = symbol.width();
+                let cell_width = current.width();
                 // Work around terminals that fail to clear the trailing cell of certain
                 // emoji presentation sequences (those containing VS16 / U+FE0F).
                 // Only emit explicit clears for such sequences to avoid bloating diffs
@@ -529,9 +529,9 @@ impl Buffer {
                 }
             }
 
-            to_skip = current.symbol().width().saturating_sub(1);
+            to_skip = current.width().saturating_sub(1);
 
-            let affected_width = cmp::max(current.symbol().width(), previous.symbol().width());
+            let affected_width = cmp::max(current.width(), previous.width());
             invalidated = cmp::max(affected_width, invalidated).saturating_sub(1);
         }
         updates
@@ -624,7 +624,7 @@ impl fmt::Debug for Buffer {
                 } else {
                     overwritten.push((x, c.symbol()));
                 }
-                skip = cmp::max(skip, c.symbol().width()).saturating_sub(1);
+                skip = cmp::max(skip, c.width()).saturating_sub(1);
                 #[cfg(feature = "underline-color")]
                 {
                     let style = (c.fg, c.bg, c.underline_color, c.modifier);
