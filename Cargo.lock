@@ -1299,6 +1299,17 @@ name = "hyperlink"
 version = "0.0.0"
 dependencies = [
  "color-eyre",
+ "crossterm 0.29.0",
+ "itertools 0.14.0",
+ "ratatui",
+]
+
+[[package]]
+name = "hyperlink2"
+version = "0.0.0"
+dependencies = [
+ "color-eyre",
+ "crossterm 0.29.0",
  "ratatui",
 ]
 
